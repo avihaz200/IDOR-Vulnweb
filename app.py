@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'supersecretkey')
+logger.info("Flask app initialized")
 logger.info("IDOR-Vulnweb app starting up")
 FLAG = os.getenv('FLAG', 'TCC{FAKE_FLAG_FOR_TEST}')
 
