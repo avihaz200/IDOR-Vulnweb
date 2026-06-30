@@ -7,8 +7,13 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 import io, json
 
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'supersecretkey')
+logger.info("IDOR-Vulnweb app starting up")
 FLAG = os.getenv('FLAG', 'TCC{FAKE_FLAG_FOR_TEST}')
 
 # In-memory "database" of 10 mahasiswa
