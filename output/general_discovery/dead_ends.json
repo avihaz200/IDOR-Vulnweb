@@ -1,0 +1,66 @@
+[
+  {
+    "hypothesis_id": "H1",
+    "reason": "Repo has no occurrences of guarded *_and_user_id helpers (grep for _and_user_id returned no matches), so the planned asymmetry check is not applicable."
+  },
+  {
+    "hypothesis_id": "H4",
+    "reason": "Reviewed app.py index/login/logout routes: they only redirect/render based on session and do not accept a user-controlled identifier used for resource access; no IDOR sink present."
+  },
+  {
+    "hypothesis_id": "H6",
+    "reason": "Neo4j enumeration shows only app.py functions (profile/get_user_by_username) and no by-id helper call graph; project contains only app.py so no additional transitive IDOR flows to analyze."
+  },
+  {
+    "hypothesis_id": "H2",
+    "reason": "Exhaustive scan of all Python route handlers (only app.py) found IDOR candidates already recorded for profile/export/transcript; no other by-id loads/updates/deletes present."
+  },
+  {
+    "hypothesis_id": "H5",
+    "reason": "Searched for file/object load primitives (send_file/send_from_directory/open/Path/os.path.join/secure_filename) across **/*.py; only hit is app.py transcript route already recorded as candidate #3, no additional object-load-by-key endpoints found."
+  },
+  {
+    "hypothesis_id": "H5",
+    "reason": "Project has no templates/ directory (only app.py); therefore no template-driven IDOR link analysis applies."
+  },
+  {
+    "hypothesis_id": "H1",
+    "reason": "grep for guarded helper pattern *_and_user_id across **/*.py yields no matches, so sibling guarded/unguarded helper divergence check is not applicable."
+  },
+  {
+    "hypothesis_id": "H2",
+    "reason": "Exhaustive review of all Flask routes in app.py shows only profile/transcript/export use user-controlled user_id for resource access; other routes (index/login/logout/message) do not perform by-id resource lookups/mutations requiring ownership checks."
+  },
+  {
+    "hypothesis_id": "H4",
+    "reason": "Reviewed index/login/logout handlers in app.py: they only authenticate and redirect based on session; no user-controlled identifier is used to select another user's data or session context."
+  },
+  {
+    "hypothesis_id": "H6",
+    "reason": "Neo4j/call-graph style enumeration not applicable: repository consists of a single Flask file (app.py) with no additional route modules/services to traverse beyond already-reviewed handlers."
+  },
+  {
+    "hypothesis_id": "H3",
+    "reason": "Reviewed app.py profile route: it uses user-controlled /profile/<user_id> to access users.get(user_id) with only a session-present check; already captured as candidates #1/#6."
+  },
+  {
+    "hypothesis_id": "H5",
+    "reason": "Project has no templates/ directory; template-driven IDOR link analysis not applicable (confirmed by app.py using render_template but no templates in repo per prior scan)."
+  },
+  {
+    "hypothesis_id": "H4",
+    "reason": "Reviewed app.py index/login/logout handlers: they only authenticate and redirect based on session['user_id'] and do not accept a user-controlled identifier used to select another user's resource."
+  },
+  {
+    "hypothesis_id": "H2",
+    "reason": "Exhaustive review of all Flask routes in the only Python file (app.py) found IDOR candidates already recorded for profile/transcript/export/send_message; no other by-id loads/mutations exist."
+  },
+  {
+    "hypothesis_id": "H5",
+    "reason": "Searched templates/**/*.html for id-bearing URLs/forms (e.g., /profile/{{...}} or user_id/id interpolations); no matches, so no template-driven IDOR link sources to chase."
+  },
+  {
+    "hypothesis_id": "H6",
+    "reason": "Searched **/*.py for key-based object/file loads (send_file/open/path joins/dict[id]) driven by request input; only relevant load is send_file in transcript already captured, others are login/message form fields without cross-user resource selection."
+  }
+]

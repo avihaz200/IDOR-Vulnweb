@@ -1,0 +1,90 @@
+{
+  "cwe": "CWE-639 \u2013 Authorization Bypass Through User-Controlled Key",
+  "frameworks": [
+    "Flask (python, confidence=medium)"
+  ],
+  "hypotheses": [
+    {
+      "id": "H1",
+      "description": "(Mandatory H-DELTA) Flask routes may call a bare *_by_id(...) helper with a user-controlled id while sibling routes use *_by_id_and_user_id(..., current_user.id), indicating an IDOR gap.",
+      "search_strategy": "1) Start with a repo-wide grep for guarded forms:\n   - tool: grep\n   - pattern: \"_and_user_id\"\n   - path_glob: \"**/*.py\"\n   - max_results: 200\n2) From the grep output, collect UNIQUE FILES that look like route/controller files (names/dirs like: app.py, routes.py, views.py, blueprints/*.py, api/*.py). Ignore pure model/dao modules if obvious.\n3) For EACH such route file, run a second targeted grep to find unguarded siblings:\n   - tool: grep\n   - pattern: \"_by_id\\(\"\n   - path_glob: \"<that_exact_file_path>\"\n   - max_results: 200\n4) In the results from step 3, FILTER OUT lines that also contain \"_and_user_id\". For each remaining bare *_by_id( call inside a request handler, use read_file around the handler to confirm the id comes from request (route param / request.args / request.json) and there is no compare to current_user/session user id.\n5) mark_candidate at the bare *_by_id( call site (router-level call), noting sibling guarded usage as evidence of missing authorization.",
+      "expected_signal_types": [
+        "MEMBERSHIP_LOOKUP",
+        "DB_LOOKUP_BY_KEY"
+      ],
+      "files_of_interest": [
+        "**/*.py"
+      ]
+    },
+    {
+      "id": "H2",
+      "description": "(Mandatory H-SCAN) Broadly enumerate Flask endpoints that accept an id-like parameter and perform a lookup/mutation by that id without any ownership binding to current_user/session.",
+      "search_strategy": "1) Identify route definitions and likely id parameters:\n   - tool: grep\n   - pattern: \"@app\\\\.route\\(|@[^\\n]*\\\\.route\\(|add_url_rule\\(|<int:|<string:|<uuid:|\\\\b(id|user_id|account_id|profile_id|order_id|doc_id)\\\\b\"\n   - path_glob: \"**/*.py\"\n   - max_results: 200\n2) For each file with hits, scan for by-id operations and common lookup/mutation helpers:\n   - tool: grep\n   - pattern: \"\\\\b(get|load|fetch|find|delete|update)_[a-zA-Z0-9]*_by_id\\(|\\\\.query\\\\.get\\(|\\\\.get\\(.*id\\b|\\\\.filter\\(.*\\\\bid\\\\b|\\\\babort\\(403\\)|\\\\bcurrent_user\\\\b|session\\\\.get\\(\\\"user\"\n   - path_glob: \"<each_hit_file_path>\"\n   - max_results: 200\n3) Use read_file on each suspicious handler to confirm: (a) id originates from request.view_args / function arg from route / request.args / request.get_json, (b) resource access uses that id, and (c) there is NO owner clause (e.g., owner_id==current_user.id) and NO after-load ownership check.\n4) mark_candidate at the lowest-level lookup/mutation call in that file (if no DAO layer exists) or at the DAO function call if it exists.",
+      "expected_signal_types": [
+        "DB_LOOKUP_BY_KEY",
+        "DB_MUTATE_BY_KEY",
+        "MEMBERSHIP_LOOKUP"
+      ],
+      "files_of_interest": [
+        "**/*.py"
+      ]
+    },
+    {
+      "id": "H3",
+      "description": "(PCL-anchored) app.py:241 profile() renders a profile page using a user_id path parameter and user fields; verify whether it loads another user's profile by user-controlled key without authorization.",
+      "search_strategy": "1) tool: read_file\n   - path: \"app.py\"\n   - start_line: 220\n   - end_line: 270\n2) In profile(), identify where the user_id comes from (route param / request.view_args / function arg) and how user data is retrieved (dict lookup, in-memory store, DAO call, etc.).\n3) Check for any guard tying requested user_id to the authenticated principal (Flask-Login current_user.id, session[\"user_id\"], etc.) or explicit role/admin check.\n4) If profile() can render arbitrary users\u2019 data based solely on the path id, mark_candidate at the resource lookup line (or at the point user_id is used to select the user object). If there is no lookup and it only echoes current_user, dead_end with rationale.",
+      "expected_signal_types": [
+        "RESPONSE_WRITE",
+        "MEMBERSHIP_LOOKUP"
+      ],
+      "files_of_interest": [
+        "app.py",
+        "templates/**/*"
+      ]
+    },
+    {
+      "id": "H4",
+      "description": "(PCL-anchored) app.py:216 index() renders the login/index page; verify whether it accepts a user-controlled key (e.g., next/user_id) that selects an account/session without ownership checks.",
+      "search_strategy": "1) tool: read_file\n   - path: \"app.py\"\n   - start_line: 190\n   - end_line: 235\n2) In index(), look for request.args/request.form/request.get_json usage of id-like keys (user_id, account_id) or redirect targets (next) that might select a user/account.\n3) If index() performs any lookup/mutation keyed by a request-supplied id (even in-memory), and does not bind it to the authenticated principal, mark_candidate at that lookup/mutation. If it only renders a static template or performs authentication correctly without trusting a user-controlled key, dead_end.",
+      "expected_signal_types": [
+        "RESPONSE_WRITE",
+        "MEMBERSHIP_LOOKUP"
+      ],
+      "files_of_interest": [
+        "app.py",
+        "templates/**/*"
+      ]
+    },
+    {
+      "id": "H5",
+      "description": "(Exploration) Template-driven IDOR: Jinja templates may generate links/forms containing user-controlled ids (e.g., /profile/{{ user_id }}) that correspond to unguarded endpoints.",
+      "search_strategy": "1) Enumerate templates and search for id-bearing URLs and forms:\n   - tool: grep\n   - pattern: \"(/profile/|/user/|/account/|/orders/|\\\\buser_id\\\\b|\\\\bid\\\\b).*\\{\\{\"\n   - path_glob: \"templates/**/*.html\"\n   - max_results: 200\n2) For each matched URL pattern (e.g., /profile/<id>), grep Python for the corresponding route and handler:\n   - tool: grep\n   - pattern: \"route\\(.*(/profile/|/user/|/account/|/orders/)\"\n   - path_glob: \"**/*.py\"\n   - max_results: 200\n3) read_file the handler(s) and confirm whether the path id is authorized against current_user/session. mark_candidate at the lookup/mutation site if unbound.",
+      "expected_signal_types": [
+        "RESPONSE_WRITE",
+        "MEMBERSHIP_LOOKUP"
+      ],
+      "files_of_interest": [
+        "templates/**/*.html",
+        "**/*.py"
+      ]
+    },
+    {
+      "id": "H6",
+      "description": "(Exploration) Look for non-DB object loads keyed by request parameters (files, caches, dicts) that could expose cross-user resources (OBJECT_LOAD_BY_KEY).",
+      "search_strategy": "1) Grep for common key-based loads and file/object access patterns in Flask handlers:\n   - tool: grep\n   - pattern: \"request\\\\.(args|get_json|form)|request\\\\.view_args|send_file\\(|send_from_directory\\(|open\\(|Path\\(|os\\\\.path\\\\.join\\(|\\\\[[^\\]]*id[^\\]]*\\\\]\"\n   - path_glob: \"**/*.py\"\n   - max_results: 200\n2) For each hit inside a route handler, use read_file to see whether a request-supplied key selects a resource (file path, dict entry, cache key) without binding to current_user/session.\n3) mark_candidate at the load site when the key is user-controlled and no ownership/role check exists; otherwise dead_end.",
+      "expected_signal_types": [
+        "OBJECT_LOAD_BY_KEY"
+      ],
+      "files_of_interest": [
+        "**/*.py"
+      ]
+    }
+  ],
+  "anti_patterns": [
+    "Do NOT flag endpoints where the parameter is the principal (e.g., /me, /profile/me, or code that uses current_user.id for lookup).",
+    "Do NOT flag owner-scoped lookups/mutations (e.g., findByIdAndOwner(id, userId), WHERE id=? AND owner_id=?, Model.objects.get(id=pk, user=request.user)).",
+    "Do NOT flag after-load ownership checks that compare loaded.owner_id/user_id to current_user/session user id and reject (403).",
+    "Do NOT flag endpoints with explicit admin/role gating that legitimately allows arbitrary ids (e.g., hasRole('ADMIN'), @RolesAllowed('admin'), if not user.isAdmin(): abort(403)).",
+    "Do NOT flag health/metrics/static endpoints (/health, /metrics, /favicon.ico, /.well-known/*), or ids that are public identifiers (SKU/slug) rather than user-owned resources."
+  ]
+}

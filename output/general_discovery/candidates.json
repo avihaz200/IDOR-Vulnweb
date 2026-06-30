@@ -1,0 +1,92 @@
+[
+  {
+    "file": "app.py",
+    "line": 238,
+    "function": "profile",
+    "signal_type": "MEMBERSHIP_LOOKUP",
+    "rationale": "Route /profile/<user_id> uses user-controlled path param user_id to fetch users.get(user_id) with only a session-present check and no binding to session['user_id'], enabling viewing other users' profiles (IDOR).",
+    "confidence": "high",
+    "hypothesis_id": "H3"
+  },
+  {
+    "file": "app.py",
+    "line": 265,
+    "function": "export_data",
+    "signal_type": "MEMBERSHIP_LOOKUP",
+    "rationale": "Route /profile/<user_id>/export uses path param user_id to load users.get(user_id) and returns that user's data without verifying user_id matches the authenticated session user (IDOR data export).",
+    "confidence": "high",
+    "hypothesis_id": "H2"
+  },
+  {
+    "file": "app.py",
+    "line": 251,
+    "function": "transcript",
+    "signal_type": "OBJECT_LOAD_BY_KEY",
+    "rationale": "Route /profile/<user_id>/transcript uses user-controlled user_id to generate and send a transcript file via send_file without checking user_id against session['user_id'], allowing unauthorized transcript download (IDOR).",
+    "confidence": "high",
+    "hypothesis_id": "H5"
+  },
+  {
+    "file": "app.py",
+    "line": 258,
+    "function": "transcript",
+    "signal_type": "OBJECT_LOAD_BY_KEY",
+    "rationale": "Flask route /profile/<user_id>/transcript uses user-controlled path param user_id to generate and return a transcript file without verifying it matches session['user_id'] or otherwise authorizing access to that user's transcript.",
+    "confidence": "high",
+    "hypothesis_id": "H3"
+  },
+  {
+    "file": "app.py",
+    "line": 266,
+    "function": "export_data",
+    "signal_type": "MEMBERSHIP_LOOKUP",
+    "rationale": "Route /profile/<user_id>/export loads user = users.get(user_id) using a user-controlled path param and returns that user's data without any ownership check against the authenticated session user.",
+    "confidence": "high",
+    "hypothesis_id": "H3"
+  },
+  {
+    "file": "app.py",
+    "line": 276,
+    "function": "send_message",
+    "signal_type": "RESPONSE_WRITE",
+    "rationale": "POST /profile/<user_id>/message takes user-controlled path param user_id and uses it to redirect to profile(user_id=...) without verifying it matches session['user_id'], enabling IDOR-style access chaining to another user's profile.",
+    "confidence": "medium",
+    "hypothesis_id": "H2"
+  },
+  {
+    "file": "app.py",
+    "line": 222,
+    "function": "profile",
+    "signal_type": "MEMBERSHIP_LOOKUP",
+    "rationale": "Flask route /profile/<user_id> uses user-controlled path param user_id to select user = users.get(user_id) with only a session-present check and no binding to session['user_id']/current user, enabling IDOR.",
+    "confidence": "high",
+    "hypothesis_id": "H3"
+  },
+  {
+    "file": "app.py",
+    "line": 239,
+    "function": "transcript",
+    "signal_type": "OBJECT_LOAD_BY_KEY",
+    "rationale": "Route /profile/<user_id>/transcript uses user-controlled path param user_id to generate and return a transcript file named with that id via send_file without verifying user_id matches the authenticated session user.",
+    "confidence": "high",
+    "hypothesis_id": "H2"
+  },
+  {
+    "file": "app.py",
+    "line": 255,
+    "function": "export_data",
+    "signal_type": "MEMBERSHIP_LOOKUP",
+    "rationale": "Route /profile/<user_id>/export uses user-controlled path param user_id to load user = users.get(user_id) and returns that user's data without checking it belongs to session['user_id'] or an admin role.",
+    "confidence": "high",
+    "hypothesis_id": "H2"
+  },
+  {
+    "file": "app.py",
+    "line": 270,
+    "function": "send_message",
+    "signal_type": "RESPONSE_WRITE",
+    "rationale": "POST /profile/<user_id>/message accepts user-controlled user_id in the path and redirects to profile(user_id=user_id) without ensuring it matches the authenticated session user, allowing cross-user interaction flows.",
+    "confidence": "medium",
+    "hypothesis_id": "H2"
+  }
+]
