@@ -217,6 +217,7 @@ def get_user_by_username(username):
 
 @app.route('/')
 def index():
+    logger.info("Index page requested")
     if 'user_id' in session:
         return redirect(url_for('profile', user_id=session['user_id']))
     return render_template('login.html')
